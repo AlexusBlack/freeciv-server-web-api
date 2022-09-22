@@ -1,5 +1,2 @@
--r publite2/requirements.txt
--r freeciv-proxy/requirements.txt
--r pbem/requirements.txt
--r scripts/freeciv-img-extract/requirements.txt
--r scripts/requirements.txt
+tornado >= 6.1
+mysql-connector-python ~= 8.0, >= 8.0.12
