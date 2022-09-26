@@ -52,6 +52,12 @@ mysql_password = settings.get("Config", "mysql_password")
 
 google_signin = settings.get("Config", "google_signin")
 
+class BaseRequestHandler(web.RequestHandler):
+    def set_default_headers(self, *args, **kwargs):
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Expose-Headers", "Port, Status, result")
+        self.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+
 
 class IndexHandler(web.RequestHandler):
 
@@ -65,8 +71,41 @@ class StatusHandler(web.RequestHandler):
 
     """Serves the Freeciv-proxy status page, on the url:  /status """
 
-    def get(self, params):
+    def get(self):
         self.write(get_debug_info(civcoms))
+
+class ValidateUserHandler(BaseRequestHandler):
+
+    """Handles user validation:  /validate_user """
+
+    def post(self):
+        # make proper handler
+        userstring = self.get_argument('userstring')
+        if validate_username(userstring):
+          self.write(userstring)
+        else:
+          self.set_status(400)
+          self.set_header("result", "error")
+          self.write('Invalid username. Please try again with another username.')
+
+class LoginUserHandler(BaseRequestHandler):
+
+    """Handles user login:  /login_user """
+
+    def post(self):
+        # TODO: make proper handler
+        self.write('OK')
+
+class CivClientLauncherHandler(BaseRequestHandler):
+
+    """Provides connection info to the client:  /civclientlauncher """
+
+    def post(self):
+        # TODO: make proper handler
+        self.set_header('result', 'success')
+        self.set_header('port', 5556)
+        self.set_header('action', 'new')
+        self.write('success')
 
 
 class WSHandler(websocket.WebSocketHandler):
@@ -223,12 +262,15 @@ if __name__ == "__main__":
             PROXY_PORT = int(sys.argv[1])
         print(('port: ' + str(PROXY_PORT)))
 
-        LOG_FILENAME = '../logs/freeciv-proxy-logging-' + str(PROXY_PORT) + '.log'
-        logging.basicConfig(filename=LOG_FILENAME,level=logging.INFO)
+        LOG_FILENAME = 'logs/freeciv-proxy-logging-' + str(PROXY_PORT) + '.log'
+        # logging.basicConfig(filename=LOG_FILENAME,level=logging.INFO)
         logger = logging.getLogger("freeciv-proxy")
 
         application = web.Application([
             (r'/civsocket/' + str(PROXY_PORT), WSHandler),
+            (r'/validate_user', ValidateUserHandler),
+            (r'/login_user', LoginUserHandler),
+            (r'/civclientlauncher', CivClientLauncherHandler),
             (r"/", IndexHandler),
             (r"(.*)status", StatusHandler),
         ])
