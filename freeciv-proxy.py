@@ -24,6 +24,7 @@
 from os import chdir
 import re
 import sys
+import subprocess
 from tornado import web, websocket, ioloop, httpserver
 from debugging import *
 import logging
@@ -54,6 +55,8 @@ google_signin = settings.get("Config", "google_signin")
 
 cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
 cursor = cnx.cursor()
+
+civ_port = 5556
 
 class BaseRequestHandler(web.RequestHandler):
     def set_default_headers(self, *args, **kwargs):
@@ -114,17 +117,20 @@ class CivClientLauncherHandler(BaseRequestHandler):
 
     def post(self):
         # TODO: make proper handler
+        global civ_port
+        subprocess.Popen(['/home/alexchernov/freeciv/bin/freeciv-web', '--exit-on-end', '--quitidle', '20', '-p', str(civ_port)])
         self.set_header('result', 'success')
-        self.set_header('port', 5556)
+        self.set_header('port', civ_port)
         self.set_header('action', 'new')
         self.write('success')
+        civ_port += 1
 
 
 class WSHandler(websocket.WebSocketHandler):
     logger = logging.getLogger("freeciv-proxy")
     io_loop = ioloop.IOLoop.current()
 
-    def open(self):
+    def open(self, port):
         self.id = str(uuid.uuid4())
         self.is_ready = False
         self.set_nodelay(True)
@@ -290,7 +296,8 @@ if __name__ == "__main__":
         logger = logging.getLogger("freeciv-proxy")
 
         application = web.Application([
-            (r'/civsocket/' + str(PROXY_PORT), WSHandler),
+            #(r'/civsocket/' + str(PROXY_PORT), WSHandler),
+            (r'/civsocket/(\d+)', WSHandler),
             (r'/validate_user', ValidateUserHandler),
             (r'/login_user', LoginUserHandler),
             (r'/civclientlauncher', CivClientLauncherHandler),
