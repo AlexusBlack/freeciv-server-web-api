@@ -52,6 +52,9 @@ mysql_password = settings.get("Config", "mysql_password")
 
 google_signin = settings.get("Config", "google_signin")
 
+cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
+cursor = cnx.cursor()
+
 class BaseRequestHandler(web.RequestHandler):
     def set_default_headers(self, *args, **kwargs):
         self.set_header("Access-Control-Allow-Origin", "*")
@@ -82,7 +85,10 @@ class ValidateUserHandler(BaseRequestHandler):
         # make proper handler
         userstring = self.get_argument('userstring')
         if validate_username(userstring):
-          self.write(userstring)
+          if check_user_exists(userstring):
+            self.write(userstring)
+          else:
+            self.write('user_does_not_exist')
         else:
           self.set_status(400)
           self.set_header("result", "error")
@@ -94,7 +100,13 @@ class LoginUserHandler(BaseRequestHandler):
 
     def post(self):
         # TODO: make proper handler
-        self.write('OK')
+        username = self.get_argument('username')
+        sha_password = self.get_argument('sha_password')
+
+        if check_user(username, sha_password):
+          self.write('OK')
+        else:
+          self.write('Failed')
 
 class CivClientLauncherHandler(BaseRequestHandler):
 
@@ -165,32 +177,33 @@ class WSHandler(websocket.WebSocketHandler):
 
     # Check user authentication
     def check_user(self, username, token):
-      return True
+      # cursor = None
+      # cnx = None
+      #try:
+        # cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
+        # cursor = cnx.cursor()
 
-      cursor = None
-      cnx = None
-      try:
-        cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
-        cursor = cnx.cursor()
+      auth_method = self.get_game_auth_method(cursor)
+      if auth_method == "password":
+        return check_user_password(cursor, username, token)
+      elif auth_method == "google":
+        return self.check_user_google(username, token)
+      else:
+        return False
 
-        auth_method = self.get_game_auth_method(cursor)
-        if auth_method == "password":
-          return self.check_user_password(cursor, username, token)
-        elif auth_method == "google":
-          return self.check_user_google(username, token)
-        else:
-          return False
-
-      finally:
-        cursor.close()
-        cnx.close()
-      return False
+      #finally:
+        # cursor.close()
+        # cnx.close()
+      #return False
 
     # Returns the auth method for this game
     # Right now this is:
     # - Google account for otpd if a client key is defined
     # - password for any other case
     def get_game_auth_method(self, cursor):
+        # TODO: no google auth for now
+        return "password"
+
         if google_signin is None or len(google_signin.strip()) == 0:
             return "password"
         query = ("select count(*) from servers where port=%(port)s and type='longturn'")
@@ -200,20 +213,6 @@ class WSHandler(websocket.WebSocketHandler):
         else:
             return "password"
 
-    def check_user_password(self, cursor, username, password):
-        query = ("select secure_hashed_password, activated from auth where lower(username)=lower(%(usr)s)")
-        cursor.execute(query, {'usr': username, 'pwd': password})
-        result = cursor.fetchall()
-
-        if len(result) == 0:
-            # Unreserved user, no password needed
-            return True
-
-        for secure_shashed_password, active in result:
-            if (active == 0): return False
-            if secure_shashed_password == hashlib.sha256(password.encode('utf-8')).hexdigest(): return True
-
-        return False
 
     def check_user_google(self, username, token):
         # Check login with Google Account
@@ -246,6 +245,30 @@ class WSHandler(websocket.WebSocketHandler):
         else:
             return civcoms[key]
 
+def check_user(username, token):
+    return check_user_password(cursor, username, token)
+
+def check_user_exists(username):
+    query = ("select username from auth where lower(username)=lower(%(usr)s)")
+    cursor.execute(query, {'usr': username})
+    result = cursor.fetchall()
+
+    return len(result) != 0
+
+def check_user_password(cursor, username, provided_password):
+    query = ("select password, activated from auth where lower(username)=lower(%(usr)s)")
+    cursor.execute(query, {'usr': username})
+    result = cursor.fetchall()
+
+    if len(result) == 0:
+        # Unreserved user, no password needed
+        return True
+
+    for password, active in result:
+        if (active == 0): return False
+        if password == hashlib.sha256(provided_password.encode('utf-8')).hexdigest(): return True
+
+    return False
 
 def validate_username(name):
     if (name is None or len(name) <= 2 or len(name) >= 32):
