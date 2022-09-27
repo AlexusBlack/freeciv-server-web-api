@@ -56,7 +56,42 @@ google_signin = settings.get("Config", "google_signin")
 cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
 cursor = cnx.cursor()
 
-civ_port = 5556
+port_range = { 'min': 5556, 'max': 6665 }
+ports_in_use = {}
+next_free_civ_port = 5556
+
+# TODO: Kill all rogue FreeCiv Server processes on startup
+
+def get_free_civ_port():
+  global next_free_civ_port
+  clean_idle_ports()
+  print(4, ports_in_use)
+
+  port = None
+  while next_free_civ_port in ports_in_use:
+    next_free_civ_port += 1
+    if next_free_civ_port > port_range['max']:
+      next_free_civ_port = port_range['min']
+
+  port = next_free_civ_port
+  next_free_civ_port += 1
+  print(3, ports_in_use)
+  return port
+
+def reserve_civ_port(port, process):
+  global ports_in_use
+  ports_in_use[port] = process
+  print(2, ports_in_use)
+
+def clean_idle_ports():
+  global ports_in_use
+  clean_ports_in_use = {}
+  for port in ports_in_use:
+    if ports_in_use[port].poll() is None: clean_ports_in_use[port] = ports_in_use[port]
+
+  ports_in_use = clean_ports_in_use
+  print(1, ports_in_use)
+
 
 class BaseRequestHandler(web.RequestHandler):
     def set_default_headers(self, *args, **kwargs):
@@ -117,13 +152,15 @@ class CivClientLauncherHandler(BaseRequestHandler):
 
     def post(self):
         # TODO: make proper handler
-        global civ_port
-        subprocess.Popen(['/home/alexchernov/freeciv/bin/freeciv-web', '--exit-on-end', '--quitidle', '20', '-p', str(civ_port)])
+        port = get_free_civ_port()
+
+        process = subprocess.Popen(['/home/alexchernov/freeciv/bin/freeciv-web', '--debug', '1', '--exit-on-end', '--quitidle', '20', '-p', str(port)])
+        reserve_civ_port(port, process)
+
         self.set_header('result', 'success')
-        self.set_header('port', civ_port)
+        self.set_header('port', port)
         self.set_header('action', 'new')
         self.write('success')
-        civ_port += 1
 
 
 class WSHandler(websocket.WebSocketHandler):
