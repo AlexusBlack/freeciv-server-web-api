@@ -53,8 +53,8 @@ mysql_password = settings.get("Config", "mysql_password")
 
 google_signin = settings.get("Config", "google_signin")
 
-cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
-cursor = cnx.cursor()
+# cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
+# cursor = cnx.cursor()
 
 port_range = { 'min': 5556, 'max': 6665 }
 ports_in_use = {}
@@ -226,6 +226,8 @@ class WSHandler(websocket.WebSocketHandler):
         # cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
         # cursor = cnx.cursor()
 
+      return True
+
       auth_method = self.get_game_auth_method(cursor)
       if auth_method == "password":
         return check_user_password(cursor, username, token)
@@ -292,6 +294,7 @@ def check_user(username, token):
     return check_user_password(cursor, username, token)
 
 def check_user_exists(username):
+    return False
     query = ("select username from auth where lower(username)=lower(%(usr)s)")
     cursor.execute(query, {'usr': username})
     result = cursor.fetchall()
@@ -299,6 +302,7 @@ def check_user_exists(username):
     return len(result) != 0
 
 def check_user_password(cursor, username, provided_password):
+    return True
     query = ("select password, activated from auth where lower(username)=lower(%(usr)s)")
     cursor.execute(query, {'usr': username})
     result = cursor.fetchall()
