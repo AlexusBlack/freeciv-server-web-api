@@ -345,7 +345,7 @@ if __name__ == "__main__":
             (r'/login_user', LoginUserHandler),
             (r'/civclientlauncher', CivClientLauncherHandler),
             (r"/", IndexHandler),
-            (r"(.*)status", StatusHandler),
+            (r"/status", StatusHandler),
         ])
 
         http_server = httpserver.HTTPServer(application)
