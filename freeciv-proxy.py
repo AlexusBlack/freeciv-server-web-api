@@ -169,7 +169,7 @@ class WSHandler(websocket.WebSocketHandler):
     logger = logging.getLogger("freeciv-proxy")
     io_loop = ioloop.IOLoop.current()
 
-    def open(self, port):
+    def open(self):
         self.id = str(uuid.uuid4())
         self.is_ready = False
         self.set_nodelay(True)
@@ -340,7 +340,7 @@ if __name__ == "__main__":
 
         application = web.Application([
             #(r'/civsocket/' + str(PROXY_PORT), WSHandler),
-            (r'/civsocket/(\d+)', WSHandler),
+            (r'/civsocket/\d+', WSHandler),
             (r'/validate_user', ValidateUserHandler),
             (r'/login_user', LoginUserHandler),
             (r'/civclientlauncher', CivClientLauncherHandler),
