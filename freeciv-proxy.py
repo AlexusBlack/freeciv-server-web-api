@@ -51,6 +51,8 @@ mysql_user = settings.get("Config", "mysql_user")
 mysql_database = settings.get("Config", "mysql_database")
 mysql_password = settings.get("Config", "mysql_password")
 
+freeciv_path = settings.get("Config", "freeciv_path")
+
 google_signin = settings.get("Config", "google_signin")
 
 # cnx = mysql.connector.connect(user=mysql_user, database=mysql_database, password=mysql_password)
@@ -154,7 +156,7 @@ class CivClientLauncherHandler(BaseRequestHandler):
         # TODO: make proper handler
         port = get_free_civ_port()
 
-        process = subprocess.Popen(['/home/alexchernov/freeciv/bin/freeciv-web', '--debug', '1', '--exit-on-end', '--quitidle', '20', '-p', str(port)])
+        process = subprocess.Popen([freeciv_path, '--debug', '1', '--exit-on-end', '--quitidle', '20', '-p', str(port)])
         reserve_civ_port(port, process)
 
         self.set_header('result', 'success')
